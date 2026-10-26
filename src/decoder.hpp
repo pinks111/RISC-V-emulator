@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 enum class Type {
     R,
@@ -18,7 +19,7 @@ struct Instruction {
     uint32_t rs2;
     uint32_t funct3;
     uint32_t funct7;
-    uint32_t imm;
+    int32_t imm;
     Type type;
 };
 

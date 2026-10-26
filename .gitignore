@@ -424,5 +424,8 @@ FodyWeavers.xsd
 *.msm
 *.msp
 
+#Google Tests
+build/
+
 # Official VS Code C# Dev Kit Extension exclusion
 #*.lscache
