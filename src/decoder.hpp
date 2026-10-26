@@ -1,3 +1,5 @@
+#pragma once
+
 #include <cstdint>
 
 enum class Type {
@@ -22,7 +24,6 @@ struct Instruction {
 
 std::optional<Type> get_type(uint32_t opcode);
 
-int32_t imm_r(uint32_t raw);
 int32_t imm_i(uint32_t raw);
 int32_t imm_s(uint32_t raw);
 int32_t imm_b(uint32_t raw);
