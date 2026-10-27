@@ -21,3 +21,12 @@ bool Memory::write32(uint32_t addr, uint32_t value) {
   }
   return true;
 }
+
+bool Memory::load_words(const std::vector<uint32_t>& words, uint32_t base) {
+  for (size_t i = 0; i < words.size(); ++i) {
+    if (!write32(base + static_cast<uint32_t>(i * 4), words[i])) {
+      return false;
+    }
+  }
+  return true;
+}
