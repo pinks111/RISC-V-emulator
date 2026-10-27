@@ -14,7 +14,7 @@ FetchContent_Declare(
 set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(googletest)
 
-add_library(rvcore STATIC src/decoder.cpp)
+add_library(rvcore STATIC src/decoder.cpp src/memory.cpp)
 target_compile_options(rvcore PRIVATE -Wall -Wextra -Wconversion)
 target_include_directories(rvcore PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
@@ -22,7 +22,10 @@ add_executable(rv32emu src/main.cpp)
 target_link_libraries(rv32emu PRIVATE rvcore)
 
 enable_testing()
-add_executable(rv_tests tests/test_decoder.cpp)
+add_executable(rv_tests
+  tests/test_decoder.cpp
+  tests/test_memory.cpp
+)
 target_link_libraries(rv_tests PRIVATE rvcore gtest_main)
 include(GoogleTest)
 gtest_discover_tests(rv_tests)
