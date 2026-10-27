@@ -17,6 +17,7 @@ std::optional<Type> get_type(uint32_t opcode) {
   }
 }
 
+// Immediate для инструкций типа I, S, B, U, J
 
 int32_t imm_i(uint32_t raw) {
   return static_cast<int32_t>(raw) >> 20;
