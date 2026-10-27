@@ -86,3 +86,70 @@ TEST(Cpu, HaltsWhenPcLeavesMemory) {
   EXPECT_FALSE(cpu.step());
   EXPECT_TRUE(cpu.is_halted());
 }
+
+// Execute Tests
+
+TEST(Cpu, SubAndLogic) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x00500093,  // addi x1, x0, 5
+      0x00300113,  // addi x2, x0, 3
+      0x402081B3,  // sub  x3, x1, x2   -> 2
+      0x0020F233,  // and  x4, x1, x2   -> 1
+      0x0020E2B3,  // or   x5, x1, x2   -> 7
+      0x0020C333   // xor  x6, x1, x2   -> 6
+  }));
+  for (int i = 0; i < 6; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.reg(3), 2u);
+  EXPECT_EQ(cpu.reg(4), 1u);
+  EXPECT_EQ(cpu.reg(5), 7u);
+  EXPECT_EQ(cpu.reg(6), 6u);
+}
+
+TEST(Cpu, ShiftRightLogicalVsArithmetic) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0xFF800093,  // addi x1, x0, -8
+      0x4010D113,  // srai x2, x1, 1   -> -4
+      0x0010D193   // srli x3, x1, 1   -> 0x7FFFFFFC
+  }));
+  for (int i = 0; i < 3; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.reg(2), 0xFFFFFFFCu);
+  EXPECT_EQ(cpu.reg(3), 0x7FFFFFFCu);
+}
+
+TEST(Cpu, SltSignedVsUnsigned) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0xFFF00093,  // addi x1, x0, -1
+      0x00100113,  // addi x2, x0, 1
+      0x0020A1B3,  // slt  x3, x1, x2   -> 1 (-1 < 1)
+      0x0020B233   // sltu x4, x1, x2   -> 0 (0xFFFFFFFF > 1)
+  }));
+  for (int i = 0; i < 4; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.reg(3), 1u);
+  EXPECT_EQ(cpu.reg(4), 0u);
+}
+
+TEST(Cpu, ShiftAmountIsMasked) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x00100093,  // addi x1, x0, 1
+      0x02000113,  // addi x2, x0, 32
+      0x002091B3   // sll  x3, x1, x2   -> 1 (сдвиг 32 & 0x1F = 0)
+  }));
+  for (int i = 0; i < 3; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.reg(3), 1u);
+}
+
+TEST(Cpu, LuiAndAuipc) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x123450B7,  // lui   x1, 0x12345  -> 0x12345000
+      0x00001117   // auipc x2, 1        -> pc(4) + 0x1000 = 0x1004
+  }));
+  EXPECT_TRUE(cpu.step());
+  EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.reg(1), 0x12345000u);
+  EXPECT_EQ(cpu.reg(2), 0x1004u);
+}
