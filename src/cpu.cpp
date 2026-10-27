@@ -95,6 +95,25 @@ bool CPU::exec_r(const Instruction& instr) {
   }
 }
 
+bool CPU::exec_b(const Instruction& instr, uint32_t& next_pc) {
+  const uint32_t a = reg(instr.rs1);
+  const uint32_t b = reg(instr.rs2);
+  bool cond = false;
+  switch(instr.funct3) {
+    case 0: cond = (a == b); break; // BEQ
+    case 1: cond = (a != b); break; // BNE
+    case 4: cond = (static_cast<int32_t>(a) < static_cast<int32_t>(b)); break; // BLT
+    case 5: cond = (static_cast<int32_t>(a) >= static_cast<int32_t>(b)); break; // BGE
+    case 6: cond = (a < b); break; // BLTU
+    case 7: cond = (a >= b); break; // BGEU
+    default: return false;
+  }
+  if (cond) {
+    next_pc = pc_ + static_cast<uint32_t>(instr.imm);
+  }
+  return true;
+}
+
 bool CPU::execute(const Instruction& instr, uint32_t& next_pc) {
   switch (instr.opcode) {
     case 0x13: return exec_i(instr);
@@ -105,7 +124,19 @@ bool CPU::execute(const Instruction& instr, uint32_t& next_pc) {
     case 0x17: // AUIPC
       write_reg(instr.rd, pc_ + static_cast<uint32_t>(instr.imm));
       return true;
+    case 0x6F: // JAL
+      write_reg(instr.rd, next_pc);
+      next_pc = pc_ + static_cast<uint32_t>(instr.imm);
+      return true;
+    case 0x67: { // JALR
+      if (instr.funct3 != 0) return false;
+      const uint32_t target = (reg(instr.rs1) + static_cast<uint32_t>(instr.imm)) & ~1u;
+      write_reg(instr.rd, next_pc);
+      next_pc = target;
+      return true;
+    }
     default: return false;
+    case 0x63: return exec_b(instr, next_pc);
   }
 }
 

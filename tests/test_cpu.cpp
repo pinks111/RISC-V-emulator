@@ -87,7 +87,7 @@ TEST(Cpu, HaltsWhenPcLeavesMemory) {
   EXPECT_TRUE(cpu.is_halted());
 }
 
-// Execute Tests
+// Execute Tests (exec_i, exec_r)
 
 TEST(Cpu, SubAndLogic) {
   CPU cpu;
@@ -152,4 +152,93 @@ TEST(Cpu, LuiAndAuipc) {
   EXPECT_TRUE(cpu.step());
   EXPECT_EQ(cpu.reg(1), 0x12345000u);
   EXPECT_EQ(cpu.reg(2), 0x1004u);
+}
+
+// Execute Tests (exec_b, JAL, JALR)
+
+TEST(Cpu, BranchTakenSkipsInstruction) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x00500093,  // addi x1, x0, 5
+      0x00500113,  // addi x2, x0, 5
+      0x00208463,  // beq  x1, x2, 8     -> на адрес 16
+      0x00100193,  // addi x3, x0, 1     (пропускается)
+      0x00200213   // addi x4, x0, 2
+  }));
+  for (int i = 0; i < 4; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.reg(3), 0u);
+  EXPECT_EQ(cpu.reg(4), 2u);
+  EXPECT_EQ(cpu.pc(), 20u);
+}
+
+TEST(Cpu, BranchNotTaken) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x00500093,  // addi x1, x0, 5
+      0x00500113,  // addi x2, x0, 5
+      0x00209463,  // bne  x1, x2, 8     (не выполняется)
+      0x00100193,  // addi x3, x0, 1
+      0x00200213   // addi x4, x0, 2
+  }));
+  for (int i = 0; i < 5; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.reg(3), 1u);
+  EXPECT_EQ(cpu.reg(4), 2u);
+}
+
+TEST(Cpu, LoopWithBackwardBranch) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x00300093,  // addi x1, x0, 3
+      0xFFF08093,  // addi x1, x1, -1
+      0xFE009EE3,  // bne  x1, x0, -4    (назад на адрес 4)
+      0x00700113   // addi x2, x0, 7
+  }));
+  for (int i = 0; i < 8; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.reg(1), 0u);
+  EXPECT_EQ(cpu.reg(2), 7u);
+  EXPECT_EQ(cpu.pc(), 16u);
+}
+
+TEST(Cpu, BltSignedVsBltuUnsigned) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0xFFF00093,  // addi x1, x0, -1
+      0x00100113,  // addi x2, x0, 1
+      0x0020C463,  // blt  x1, x2, 8     (-1 < 1, выполняется -> адрес 16)
+      0x00100193,  // addi x3, x0, 1     (пропускается)
+      0x0020E463,  // bltu x1, x2, 8     (0xFFFFFFFF < 1 неверно, не выполняется)
+      0x00100213   // addi x4, x0, 1
+  }));
+  for (int i = 0; i < 5; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.reg(3), 0u);
+  EXPECT_EQ(cpu.reg(4), 1u);
+  EXPECT_EQ(cpu.pc(), 24u);
+}
+
+TEST(Cpu, JalLinksAndJumps) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x008000EF,  // jal  x1, 8         -> адрес 8
+      0x00100113,  // addi x2, x0, 1     (пропускается)
+      0x00200193   // addi x3, x0, 2
+  }));
+  EXPECT_TRUE(cpu.step());
+  EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.reg(1), 4u);   // адрес возврата
+  EXPECT_EQ(cpu.reg(2), 0u);
+  EXPECT_EQ(cpu.reg(3), 2u);
+}
+
+TEST(Cpu, JalrUsesOldRegisterValue) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x00C00093,  // addi x1, x0, 12
+      0x000080E7,  // jalr x1, x1, 0     -> адрес 12, x1 = 8
+      0x00100113,  // addi x2, x0, 1     (пропускается)
+      0x00200193   // addi x3, x0, 2
+  }));
+  for (int i = 0; i < 3; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.reg(1), 8u);
+  EXPECT_EQ(cpu.reg(2), 0u);
+  EXPECT_EQ(cpu.reg(3), 2u);
 }
