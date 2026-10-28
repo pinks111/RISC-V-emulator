@@ -17,6 +17,8 @@ class CPU {
   bool exec_i(const Instruction& instr);
   bool exec_r(const Instruction& instr);
   bool exec_b(const Instruction& instr, uint32_t& next_pc);
+  bool exec_load(const Instruction& instr);
+  bool exec_store(const Instruction& instr);
 public:
   explicit CPU(size_t size = 64 * 1024);
   bool step();

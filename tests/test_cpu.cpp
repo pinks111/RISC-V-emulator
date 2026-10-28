@@ -242,3 +242,79 @@ TEST(Cpu, JalrUsesOldRegisterValue) {
   EXPECT_EQ(cpu.reg(2), 0u);
   EXPECT_EQ(cpu.reg(3), 2u);
 }
+
+// Execute Tests (load, store)
+
+TEST(Cpu, ByteLoadSignedVsUnsigned) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x10000093,  // addi x1, x0, 256
+      0xF8000113,  // addi x2, x0, -128
+      0x00208023,  // sb   x2, 0(x1)
+      0x00008183,  // lb   x3, 0(x1)   -> 0xFFFFFF80
+      0x0000C203   // lbu  x4, 0(x1)   -> 0x80
+  }));
+  for (int i = 0; i < 5; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.reg(3), 0xFFFFFF80u);
+  EXPECT_EQ(cpu.reg(4), 0x80u);
+}
+
+TEST(Cpu, HalfLoadSignedVsUnsigned) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x10000093,  // addi x1, x0, 256
+      0xFFF00113,  // addi x2, x0, -1
+      0x00209023,  // sh   x2, 0(x1)
+      0x00009183,  // lh   x3, 0(x1)   -> 0xFFFFFFFF
+      0x0000D203   // lhu  x4, 0(x1)   -> 0xFFFF
+  }));
+  for (int i = 0; i < 5; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.reg(3), 0xFFFFFFFFu);
+  EXPECT_EQ(cpu.reg(4), 0xFFFFu);
+  EXPECT_EQ(cpu.memory().read8(258).value(), 0u);  // sh не трогает соседние байты
+}
+
+TEST(Cpu, StoreWordLoadWordNegativeOffset) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x12345137,  // lui  x2, 0x12345
+      0x10400093,  // addi x1, x0, 260
+      0xFE20AE23,  // sw   x2, -4(x1)  -> пишет по адресу 256
+      0xFFC0A183   // lw   x3, -4(x1)
+  }));
+  for (int i = 0; i < 4; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.memory().read32(256).value(), 0x12345000u);
+  EXPECT_EQ(cpu.reg(3), 0x12345000u);
+}
+
+TEST(Cpu, LoadOutOfRangeHaltsAndKeepsRd) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x00700113,  // addi x2, x0, 7
+      0x800000B7,  // lui  x1, 0x80000   (x1 = 0x80000000)
+      0x0000A103   // lw   x2, 0(x1)     -> вне памяти
+  }));
+  EXPECT_TRUE(cpu.step());
+  EXPECT_TRUE(cpu.step());
+  EXPECT_FALSE(cpu.step());
+  EXPECT_TRUE(cpu.is_halted());
+  EXPECT_EQ(cpu.reg(2), 7u);  // rd не изменился
+}
+
+TEST(Cpu, StoreOutOfRangeHalts) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x800000B7,  // lui x1, 0x80000
+      0x0020A023   // sw  x2, 0(x1)
+  }));
+  EXPECT_TRUE(cpu.step());
+  EXPECT_FALSE(cpu.step());
+  EXPECT_TRUE(cpu.is_halted());
+}
+
+TEST(Cpu, InvalidLoadStoreFunct3Halts) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({0x0000B183}));  // funct3 = 3, в RV32I такого load нет
+  EXPECT_FALSE(cpu.step());
+  EXPECT_TRUE(cpu.is_halted());
+}
