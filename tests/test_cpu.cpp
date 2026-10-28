@@ -1,4 +1,5 @@
 #include <gtest/gtest.h>
+#include <sstream>
 #include "cpu.hpp"
 
 TEST(Cpu, InitialState) {
@@ -317,4 +318,88 @@ TEST(Cpu, InvalidLoadStoreFunct3Halts) {
   ASSERT_TRUE(cpu.memory().load_words({0x0000B183}));  // funct3 = 3, в RV32I такого load нет
   EXPECT_FALSE(cpu.step());
   EXPECT_TRUE(cpu.is_halted());
+}
+
+// ECALL, Output, and Exit Code Tests
+
+TEST(Cpu, EcallExit) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x05D00893,  // addi x17, x0, 93
+      0x02A00513,  // addi x10, x0, 42
+      0x00000073   // ecall
+  }));
+  for (int i = 0; i < 3; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_TRUE(cpu.is_halted());
+  EXPECT_TRUE(cpu.exited());
+  EXPECT_EQ(cpu.exit_code(), 42);
+  EXPECT_FALSE(cpu.step());  // после exit процессор больше не работает
+}
+
+TEST(Cpu, EcallWriteToStdout) {
+  std::ostringstream out;
+  CPU cpu(64 * 1024, out);
+  ASSERT_TRUE(cpu.memory().load_bytes({0x48, 0x69, 0x0A}, 256));  // "Hi\n"
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x04000893,  // addi x17, x0, 64
+      0x00100513,  // addi x10, x0, 1
+      0x10000593,  // addi x11, x0, 256
+      0x00300613,  // addi x12, x0, 3
+      0x00000073   // ecall
+  }));
+  for (int i = 0; i < 5; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(out.str(), "Hi\n");
+  EXPECT_EQ(cpu.reg(10), 3u);  // write вернул длину
+  EXPECT_FALSE(cpu.is_halted());
+}
+
+TEST(Cpu, EcallWriteBadFd) {
+  std::ostringstream out;
+  CPU cpu(64 * 1024, out);
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x04000893,  // addi x17, x0, 64
+      0x00500513,  // addi x10, x0, 5     (такого fd нет)
+      0x10000593,  // addi x11, x0, 256
+      0x00300613,  // addi x12, x0, 3
+      0x00000073   // ecall
+  }));
+  for (int i = 0; i < 5; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(out.str(), "");
+  EXPECT_EQ(cpu.reg(10), 0xFFFFFFFFu);
+  EXPECT_FALSE(cpu.is_halted());
+}
+
+TEST(Cpu, EcallWriteBufferOutOfRange) {
+  std::ostringstream out;
+  CPU cpu(64 * 1024, out);
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x04000893,  // addi x17, x0, 64
+      0x00100513,  // addi x10, x0, 1
+      0x800005B7,  // lui  x11, 0x80000   (адрес вне памяти)
+      0x00300613,  // addi x12, x0, 3
+      0x00000073   // ecall
+  }));
+  for (int i = 0; i < 5; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(out.str(), "");
+  EXPECT_EQ(cpu.reg(10), 0xFFFFFFFFu);
+}
+
+TEST(Cpu, UnknownSyscallHaltsAsError) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x00100893,  // addi x17, x0, 1
+      0x00000073   // ecall
+  }));
+  EXPECT_TRUE(cpu.step());
+  EXPECT_FALSE(cpu.step());
+  EXPECT_TRUE(cpu.is_halted());
+  EXPECT_FALSE(cpu.exited());  // это ошибка, а не нормальный выход
+}
+
+TEST(Cpu, EbreakIsNotSupported) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({0x00100073}));  // ebreak
+  EXPECT_FALSE(cpu.step());
+  EXPECT_TRUE(cpu.is_halted());
+  EXPECT_FALSE(cpu.exited());
 }

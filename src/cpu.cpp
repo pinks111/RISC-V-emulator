@@ -1,6 +1,6 @@
 #include "cpu.hpp"
 
-CPU::CPU(size_t size) : mem_(size) {}
+CPU::CPU(size_t size, std::ostream& out) : mem_(size), out_(out) {}
 
 void CPU::write_reg(int index, uint32_t value) {
   if (index != 0) {
@@ -166,6 +166,49 @@ bool CPU::exec_store(const Instruction& instr) {
   }
 }
 
+void CPU::sys_write() {
+  const uint32_t fd = reg(10);
+  const uint32_t buf = reg(11);
+  const uint32_t count = reg(12);
+  const uint32_t error = 0xFFFFFFFFu;
+  const size_t size = mem_.size();
+  if (fd != 1 || buf >= size || count > size - buf) {
+    write_reg(10, error);
+    return;
+  }
+  std::string data;
+  data.reserve(count);
+  for (uint32_t i = 0; i < count; ++i) {
+    auto byte = mem_.read8(buf + i);
+    if (!byte) {
+      write_reg(10, error);
+      return;
+    }
+    data.push_back(static_cast<char>(*byte));
+  }
+  std::ostream& os = (fd == 1) ? out_ : std::cerr;
+  os << data;
+  write_reg(10, count);
+}
+
+bool CPU::exec_sys(const Instruction& instr) {
+  if (instr.funct3 != 0 || instr.rd != 0 || instr.rs1 != 0 || instr.imm != 0) {
+    return false;
+  }
+  switch (reg(17)) {
+    case 93: // exit
+      exit_code_ = static_cast<int>(reg(10));
+      exited_ = true;
+      halted_ = true;
+      return true;
+    case 64: // write
+      sys_write();
+      return true;
+    default:
+      return false;
+  }
+}
+
 bool CPU::execute(const Instruction& instr, uint32_t& next_pc) {
   switch (instr.opcode) {
     case 0x13: return exec_i(instr);
@@ -191,6 +234,7 @@ bool CPU::execute(const Instruction& instr, uint32_t& next_pc) {
     case 0x63: return exec_b(instr, next_pc);
     case 0x03: return exec_load(instr);
     case 0x23: return exec_store(instr);
+    case 0x73: return exec_sys(instr);
   }
 }
 
