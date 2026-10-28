@@ -29,6 +29,33 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
+## Docker
+
+Сборка и запуск без установки компилятора и CMake. Нужен только Docker.
+
+Образ с эмулятором:
+
+```bash
+docker build -t rv32emu .
+```
+
+Тесты (собираются отдельной стадией `test`):
+
+```bash
+docker build --target test -t rv32emu-test .
+docker run --rm rv32emu-test
+```
+
+Запуск своей программы (файл с хоста монтируется в контейнер):
+
+```bash
+# Linux / macOS
+docker run --rm -v "$PWD":/data rv32emu /data/program.bin
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/data" rv32emu /data/program.bin
+```
+
 ## План работ
 
 - [x] Декодер инструкций (форматы R, I, S, B, U, J)
