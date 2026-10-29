@@ -22,6 +22,9 @@ add_executable(rv32emu src/main.cpp)
 target_link_libraries(rv32emu PRIVATE rvcore)
 
 enable_testing()
+add_test(NAME hello_example
+         COMMAND rv32emu ${CMAKE_SOURCE_DIR}/examples/hello.bin)
+set_tests_properties(hello_example PROPERTIES PASS_REGULAR_EXPRESSION "Hi")
 add_executable(rv_tests
   tests/test_decoder.cpp
   tests/test_memory.cpp
