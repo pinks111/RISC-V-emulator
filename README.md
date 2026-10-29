@@ -14,9 +14,10 @@
 ## Структура проекта
 
 ```
-src/        исходники эмулятора (декодер, процессор, память)
+src/        исходники эмулятора (декодер, процессор, память, main)
 tests/      модульные тесты (GoogleTest)
-examples/   примеры программ
+examples/   примеры программ (.bin)
+tools/      скрипты для сборки примеров
 ```
 
 ## Сборка
@@ -29,32 +30,25 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-## Docker
-
-Сборка и запуск без установки компилятора и CMake. Нужен только Docker.
-
-Образ с эмулятором:
+## Использование
 
 ```bash
-docker build -t rv32emu .
+rv32emu program.bin
 ```
 
-Тесты (собираются отдельной стадией `test`):
+Эмулятор загружает бинарный файл в память с адреса 0, начинает выполнение
+с `pc = 0` и работает до вызова `exit`, ошибки или превышения лимита шагов.
+
+Пример (после сборки):
 
 ```bash
-docker build --target test -t rv32emu-test .
-docker run --rm rv32emu-test
+./build/rv32emu examples/hello.bin
 ```
 
-Запуск своей программы (файл с хоста монтируется в контейнер): (Пока в разработке)
+Код возврата эмулятора равен коду, с которым программа вызвала `exit`.
+Ненулевой код может означать и ошибку эмулятора (плохая инструкция,
+обращение вне памяти, неверный запуск), сообщение об ошибке выводится в `stderr`.
 
-```bash
-# Linux / macOS
-docker run --rm -v "$PWD":/data rv32emu /data/program.bin
-
-# Windows (PowerShell)
-docker run --rm -v "${PWD}:/data" rv32emu /data/program.bin
-```
 ## Системные вызовы
 
 Программы общаются с эмулятором через `ecall`. Номер вызова кладётся
@@ -65,14 +59,44 @@ docker run --rm -v "${PWD}:/data" rv32emu /data/program.bin
 | 93 | `exit` | a0 = код выхода | останавливает эмулятор |
 | 64 | `write` | a0 = fd (1 или 2), a1 = адрес буфера, a2 = длина | a0 = записано байт, или -1 при ошибке |
 
+
+## Docker
+
+Сборка и запуск без установки компилятора и CMake. Нужен только Docker.
+
+```bash
+docker build -t rv32emu .
+docker run --rm rv32emu /examples/hello.bin
+```
+
+Тесты (отдельная стадия сборки):
+
+```bash
+docker build --target test -t rv32emu-test .
+docker run --rm rv32emu-test
+```
+
+Запуск своей программы (файл с хоста монтируется в контейнер):
+
+```bash
+# Linux / macOS
+docker run --rm -v "$PWD":/data rv32emu /data/program.bin
+
+# Windows (PowerShell)
+docker run --rm -v "${PWD}:/data" rv32emu /data/program.bin
+```
+
+## Системные вызовы
+
 ## План работ
 
 - [x] Декодер инструкций (форматы R, I, S, B, U, J)
-- [ ] Выполнение инструкций
-- [ ] Память и load/store
-- [ ] ECALL для вывода и завершения программы
-- [ ] Примеры программ
-- [ ] Docker-образ и CI
+- [x] Выполнение инструкций RV32I (арифметика, переходы, load/store)
+- [x] Память и ECALL (`exit`, `write`)
+- [x] Запуск бинарных файлов, пример `hello`
+- [x] Docker-образ
+- [ ] Более сложные примеры программ
+- [ ] CI
 
 ## Лицензия
 

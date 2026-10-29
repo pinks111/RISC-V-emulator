@@ -23,5 +23,6 @@ CMD ["ctest", "--test-dir", "docker-build", "--output-on-failure"]
 FROM ubuntu:24.04 AS runtime
 
 COPY --from=build /src/docker-build/rv32emu /usr/local/bin/rv32emu
+COPY examples /examples
 
 ENTRYPOINT ["/usr/local/bin/rv32emu"]
