@@ -1,5 +1,7 @@
 # RISC-V-emulator
 
+![CI](https://github.com/pinks111/RISC-V-emulator/actions/workflows/ci.yml/badge.svg)
+
 Минималистичный эмулятор RISC-V (RV32I) на C++20.
 
 > **Статус:** в разработке. Декодер инструкций реализован,
