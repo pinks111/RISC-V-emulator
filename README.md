@@ -1,11 +1,10 @@
 # RISC-V-emulator
 
-![CI](https://github.com/pinks111/RISC-V-emulator/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/pinks111/RISC-V-emulator/actions/workflows/ci.yml)
 
 Минималистичный эмулятор RISC-V (RV32IM) на C++20.
 
-> **Статус:** в разработке. Декодер инструкций реализован,
-> выполнение инструкций пишется.
+> **Статус:** Работающий эмулятор RV32IM, развивается.
 
 ## Цели
 
@@ -112,6 +111,7 @@ docker run --rm -v "${PWD}:/data" rv32emu /data/program.bin
 - [x] Память и ECALL (`exit`, `write`)
 - [x] Запуск бинарных файлов, пример `hello`
 - [x] Docker-образ
+- [x] Выполнение инструкций RV32M 
 - [ ] Более сложные примеры программ
 - [ ] CI
 
