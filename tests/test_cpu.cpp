@@ -469,3 +469,17 @@ TEST(Cpu, EbreakIsNotSupported) {
   EXPECT_TRUE(cpu.is_halted());
   EXPECT_FALSE(cpu.exited());
 }
+
+TEST(Cpu, SumOneToTenProgram) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x00000513, 0x00100593, 0x00B00613, 0x00B50533,
+      0x00158593, 0xFEC59CE3, 0x05D00893, 0x00000073}));
+  int steps = 0;
+  while (!cpu.is_halted() && steps < 1000) {
+    cpu.step();
+    ++steps;
+  }
+  EXPECT_TRUE(cpu.exited());
+  EXPECT_EQ(cpu.exit_code(), 55);
+}
