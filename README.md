@@ -1,6 +1,6 @@
 # RISC-V-emulator
 
-![CI](https://github.com/pinks111/RISC-V-emulator/actions/workflows/ci.yml)
+[![CI](https://github.com/pinks111/RISC-V-emulator/actions/workflows/ci.yml/badge.svg)](https://github.com/pinks111/RISC-V-emulator/actions/workflows/ci.yml)
 
 Минималистичный эмулятор RISC-V (RV32IM) на C++20.
 
