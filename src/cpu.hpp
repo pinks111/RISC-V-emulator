@@ -23,6 +23,7 @@ class CPU {
   bool exec_i(const Instruction& instr);
   bool exec_r(const Instruction& instr);
   bool exec_b(const Instruction& instr, uint32_t& next_pc);
+  bool exec_m(const Instruction& instr);
 
   bool exec_load(const Instruction& instr);
   bool exec_store(const Instruction& instr);

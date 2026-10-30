@@ -320,6 +320,72 @@ TEST(Cpu, InvalidLoadStoreFunct3Halts) {
   EXPECT_TRUE(cpu.is_halted());
 }
 
+// Execute tests (exec_m)
+
+TEST(Cpu, SignedDivisionAndRemainderRoundTowardZero) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0xFF900093,  // addi x1, x0, -7
+      0x00200113,  // addi x2, x0, 2
+      0x0220C1B3,  // div  x3, x1, x2 -> -3
+      0x0220E233   // rem  x4, x1, x2 -> -1
+  }));
+  for (int i = 0; i < 4; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.reg(3), 0xFFFFFFFDu);
+  EXPECT_EQ(cpu.reg(4), 0xFFFFFFFFu);
+}
+
+TEST(Cpu, MulNegative) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0xFFD00093,  // addi x1, x0, -3
+      0x00700113,  // addi x2, x0, 7
+      0x022081B3   // mul  x3, x1, x2   -> -21
+  }));
+  for (int i = 0; i < 3; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.reg(3), 0xFFFFFFEBu);
+}
+
+TEST(Cpu, MulHighVariants) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0xFFF00093,  // addi x1, x0, -1
+      0xFFF00113,  // addi x2, x0, -1
+      0x0220B1B3,  // mulhu  x3, x1, x2  -> 0xFFFFFFFE
+      0x02209233,  // mulh   x4, x1, x2  -> 0   ((-1)*(-1) = 1)
+      0x0220A2B3   // mulhsu x5, x1, x2  -> 0xFFFFFFFF
+  }));
+  for (int i = 0; i < 5; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.reg(3), 0xFFFFFFFEu);
+  EXPECT_EQ(cpu.reg(4), 0u);
+  EXPECT_EQ(cpu.reg(5), 0xFFFFFFFFu);
+}
+
+TEST(Cpu, DivByZero) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x00500093,  // addi x1, x0, 5     (x2 остаётся нулём)
+      0x0220C1B3,  // div  x3, x1, x2    -> 0xFFFFFFFF
+      0x0220E233   // rem  x4, x1, x2    -> 5
+  }));
+  for (int i = 0; i < 3; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.reg(3), 0xFFFFFFFFu);
+  EXPECT_EQ(cpu.reg(4), 5u);
+}
+
+TEST(Cpu, DivOverflow) {
+  CPU cpu;
+  ASSERT_TRUE(cpu.memory().load_words({
+      0x800000B7,  // lui  x1, 0x80000   (INT_MIN)
+      0xFFF00113,  // addi x2, x0, -1
+      0x0220C1B3,  // div  x3, x1, x2    -> INT_MIN
+      0x0220E233   // rem  x4, x1, x2    -> 0
+  }));
+  for (int i = 0; i < 4; ++i) EXPECT_TRUE(cpu.step());
+  EXPECT_EQ(cpu.reg(3), 0x80000000u);
+  EXPECT_EQ(cpu.reg(4), 0u);
+}
+
 // ECALL, Output, and Exit Code Tests
 
 TEST(Cpu, EcallExit) {

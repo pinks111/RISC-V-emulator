@@ -91,8 +91,61 @@ bool CPU::exec_r(const Instruction& instr) {
         return true;
       }
       return false;
+      case 0x01: return exec_m(instr);
     default: return false;
   }
+}
+
+bool CPU::exec_m(const Instruction& instr) {
+  const uint32_t a = reg(instr.rs1);
+  const uint32_t b = reg(instr.rs2);
+  const int32_t sa = static_cast<int32_t>(a);
+  const int32_t sb = static_cast<int32_t>(b);
+  uint32_t res = 0;
+  switch (instr.funct3) {
+    case 0: // MUL
+      res = a * b;
+      break;
+    case 1: //MULH
+      res = static_cast<uint32_t>((static_cast<int64_t>(sa) * sb) >> 32);
+      break;
+    case 2: // MULHSU
+      res = static_cast<uint32_t>((static_cast<int64_t>(sa) * static_cast<int64_t>(b)) >> 32);
+      break;
+    case 3: // MULHU
+      res = static_cast<uint32_t>((static_cast<uint64_t>(a) * b) >> 32);
+      break;
+    case 4: // DIV
+      if (b == 0) {
+        res = 0xFFFFFFFFu;
+      }
+      else if (sa == INT32_MIN && sb == -1) {
+        res = a;
+      }
+      else {
+        res = static_cast<uint32_t>(sa / sb);
+      }
+      break;
+    case 5: // DIVU
+      res = (b == 0) ? 0xFFFFFFFFu : a / b;
+      break;
+    case 6: // REM
+      if (b == 0) {
+        res = a;
+      }
+      else if (sa == INT32_MIN && sb == -1) {
+        res = 0;
+      }
+      else {
+        res = static_cast<uint32_t>(sa % sb);
+      }
+      break;
+    case 7: // REMU
+      res = (b == 0) ? a : a % b;
+      break;
+  }
+  write_reg(instr.rd, res);
+  return true;
 }
 
 bool CPU::exec_b(const Instruction& instr, uint32_t& next_pc) {
